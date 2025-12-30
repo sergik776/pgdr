@@ -12,15 +12,20 @@ fn main() -> io::Result<()> {
             .error(ClapErrorKind::MissingRequiredArgument, "Specify at least one: -L, -U, -n, -s")
             .exit();
     }
-    let mut lookup = [false; 256];
-    for b in 0..=255u8 {
-        if (cli.lowercase && b.is_ascii_lowercase()) ||
-           (cli.uppercase && b.is_ascii_uppercase()) ||
-           (cli.numbers && b.is_ascii_digit()) ||
-           (cli.symbols && b"!@#$%^&*()_+-=".contains(&b)) {
-            lookup[b as usize] = true;
-        }
+    let mut charset: Vec<u8> = Vec::new();
+    if cli.lowercase {
+        charset.extend(b'a'..=b'z');
     }
+    if cli.uppercase {
+        charset.extend(b'A'..=b'Z');
+    }
+    if cli.numbers {
+        charset.extend(b'0'..=b'9');
+    }
+    if cli.symbols {
+        charset.extend_from_slice(b"!@#$%^&*()_+-=");
+    }
+    let charset_len = charset.len() as u32;
     let path = if cli.random_source { "/dev/random" } else { "/dev/urandom" };
     let mut entropy_source = File::open(path)?;
     let mut stdout = io::BufWriter::with_capacity(cli.buffer_size, io::stdout().lock());
@@ -34,14 +39,11 @@ fn main() -> io::Result<()> {
                 format!("Insufficient entropy available in {}. Try using /dev/urandom (remove -R) or wait for more system interrupts.", path)
             ));
         }
-        for &byte in &read_buf[..n] {
-            if lookup[byte as usize] {
-                stdout.write_all(&[byte])?;
-                written_total += 1;
-                if written_total >= cli.length {
-                    break;
-                }
-            }
+        for &byte in &read_buf[..] {
+            if written_total >= cli.length as usize { break; }
+            let idx = (byte as u32) % charset_len;
+            stdout.write_all(&[charset[idx as usize]])?;
+            written_total += 1;
         }
     }
     stdout.write_all(b"\n")?;
