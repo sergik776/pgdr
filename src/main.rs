@@ -39,12 +39,12 @@ fn main() -> io::Result<()> {
                 format!("Insufficient entropy available in {}. Try using /dev/urandom (remove -R) or wait for more system interrupts.", path)
             ));
         }
-        for &byte in &read_buf[..] {
-            if written_total >= cli.length as usize { break; }
-            let idx = (byte as u32) % charset_len;
-            stdout.write_all(&[charset[idx as usize]])?;
-            written_total += 1;
-        }
+        read_buf[..n].iter().enumerate().for_each(|(i, &byte)| {
+        if written_total >= cli.length as usize { return; } 
+        let idx = (byte as u32) % charset_len as u32;
+        stdout.write_all(&[charset[idx as usize]]);
+        written_total += 1;
+        });
     }
     stdout.write_all(b"\n")?;
     stdout.flush()?;
