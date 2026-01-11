@@ -1,28 +1,23 @@
 mod cli_commands;
 
 use crate::cli_commands::Cli;
-use clap::{Parser, CommandFactory, error::ErrorKind as ClapErrorKind};
+use clap::Parser;
 use std::fs::File;
 use std::io::{self, Read, Write};
 
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
-    if !cli.lowercase && !cli.uppercase && !cli.numbers && !cli.symbols {
-        Cli::command()
-            .error(ClapErrorKind::MissingRequiredArgument, "Specify at least one: -L, -U, -n, -s")
-            .exit();
-    }
     let mut charset: Vec<u8> = Vec::new();
-    if cli.lowercase {
+    if cli.charset.lowercase {
         charset.extend(b'a'..=b'z');
     }
-    if cli.uppercase {
+    if cli.charset.uppercase {
         charset.extend(b'A'..=b'Z');
     }
-    if cli.numbers {
+    if cli.charset.numbers {
         charset.extend(b'0'..=b'9');
     }
-    if cli.symbols {
+    if cli.charset.symbols {
         charset.extend_from_slice(b"!@#$%^&*()_+-=");
     }
     let charset_len = charset.len() as u32;
@@ -39,10 +34,10 @@ fn main() -> io::Result<()> {
                 format!("Insufficient entropy available in {}. Try using /dev/urandom (remove -R) or wait for more system interrupts.", path)
             ));
         }
-        read_buf[..n].iter().enumerate().for_each(|(i, &byte)| {
+        read_buf[..n].iter().enumerate().for_each(|(_i, &byte)| {
         if written_total >= cli.length as usize { return; } 
         let idx = (byte as u32) % charset_len as u32;
-        stdout.write_all(&[charset[idx as usize]]);
+        let _ = stdout.write_all(&[charset[idx as usize]]);
         written_total += 1;
         });
     }
